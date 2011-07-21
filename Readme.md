@@ -6,7 +6,7 @@ Pinch makes it possible to download a specific file from within a ZIP file
 over HTTP/1.1
 
 This is the Objective-C implementation, including an iPhone project demo. Search for `Pinch_Example` 
-in the zippzapper project to see its usage.
+in the zipzapper project to see its usage.
 
 Dependencies: [ASIHTTPRequest](http://allseeing-i.com/ASIHTTPRequest/), libz.dylib
 
