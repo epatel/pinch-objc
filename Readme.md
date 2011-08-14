@@ -5,8 +5,8 @@ Retrieve a file from inside a zip file, over the network!
 Pinch makes it possible to download a specific file from within a ZIP file
 over HTTP/1.1
 
-This is the Objective-C implementation, including an iPhone project demo. Search for `Pinch_Example` 
-in the zipzapper project to see its usage.
+This is the Objective-C implementation. There are two demo projects, zipzapper which is an iPhone project and zipcommander which builds a commandline tool. Search for `Pinch_Example` 
+in the projects to see usages of pinch.
 
 Dependencies: [ASIHTTPRequest](http://allseeing-i.com/ASIHTTPRequest/), libz.dylib
 
