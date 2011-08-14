@@ -88,10 +88,13 @@ struct zip_file_header {
 
 @implementation pinch
 
+@synthesize runAsynchronous;
+
 - (id)init
 {
     self = [super init];
     if (self) {
+        runAsynchronous = YES;
     }
     return self;
 }
@@ -210,7 +213,10 @@ idx += sizeof(file_record._field)
         completionBlock(entry);
     }];
     
-    [request startAsynchronous];
+    if (runAsynchronous)
+        [request startAsynchronous];
+    else
+        [request startSynchronous];
 }
 
 // Support method to parse the zip file content directory
@@ -287,7 +293,10 @@ idx += sizeof(dir_record._field)
         completionBlock(nil);
     }];
     
-    [request startAsynchronous];
+    if (runAsynchronous)
+        [request startAsynchronous];
+    else
+        [request startSynchronous];
 }
 
 // Support method to find the zip file content directory
@@ -358,7 +367,10 @@ idx += sizeof(end_record._field)
         completionBlock(nil);
     }];
     
-    [request startAsynchronous];
+    if (runAsynchronous)
+        [request startAsynchronous];
+    else
+        [request startSynchronous];
 }
 
 /* ----------------------------------------------------------------------
@@ -392,7 +404,10 @@ idx += sizeof(end_record._field)
         completionBlock(nil);
     }];
     
-    [request startAsynchronous];
+    if (runAsynchronous)
+        [request startAsynchronous];
+    else
+        [request startSynchronous];
 }
 
 @end

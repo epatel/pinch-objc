@@ -54,3 +54,9 @@
 @property (nonatomic, retain) NSData *data;
 
 @end
+
+@interface NSArray (zipentry)
+
+- (zipentry*)zipentryWithPath:(NSString*)path;
+
+@end

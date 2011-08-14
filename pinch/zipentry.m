@@ -51,3 +51,16 @@
 }
 
 @end
+
+@implementation NSArray (zipentry)
+
+- (zipentry*)zipentryWithPath:(NSString*)path 
+{
+    for (zipentry *entry in self) {
+        if ([entry.filepath isEqualToString:path])
+            return entry;
+    }
+    return nil;
+}
+
+@end

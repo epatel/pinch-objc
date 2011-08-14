@@ -40,15 +40,17 @@
 #import "zipentry.h"
 
 // 100 eq 1.0.0
-#define PINCH_VERSION 100
+#define PINCH_VERSION 101
 
 typedef void(^pinch_file_completion)(zipentry *entry);
 typedef void(^pinch_directory_completion)(NSArray *directory);
 
 
 @interface pinch : NSObject {
-
+    BOOL runAsynchronous;
 }
+
+@property (nonatomic, assign) BOOL runAsynchronous;
 
 - (void)fetchFile:(zipentry*)entry completionBlock:(pinch_file_completion)completionBlock;
 - (void)fetchDirectory:(NSString*)url completionBlock:(pinch_directory_completion)completionBlock;
