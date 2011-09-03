@@ -115,6 +115,7 @@ struct zip_file_header {
 - (void)fetchFile:(zipentry*)entry completionBlock:(pinch_file_completion)completionBlock;
 {
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:entry.url]];
+    void *unretained_request = request;
     
     entry.data = nil;
 
@@ -126,9 +127,9 @@ struct zip_file_header {
                         value:[NSString stringWithFormat:@"bytes=%d-%d", entry.offset, entry.offset+length+16]];
     
     [request setCompletionBlock:^(void) {
-        
-        unsigned char *cptr = (unsigned char*)[[request responseData] bytes];
-        int len = [[request responseData] length];
+        NSData *data = [unretained_request responseData];
+        unsigned char *cptr = (unsigned char*)[data bytes];
+        int len = [data length];
         NSLog(@"## fetchFile: ended ##");
         NSLog(@"Received: %d", len);
         struct zip_file_header file_record;
@@ -224,14 +225,15 @@ idx += sizeof(file_record._field)
 - (void)parseCentralDirectory:(NSString*)url withOffset:(int)offset withLength:(int)length completionBlock:(pinch_directory_completion)completionBlock
 {
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
+    void *unretained_request = request;
     
     [request addRequestHeader:@"Range" value:[NSString stringWithFormat:@"bytes=%d-%d", offset, offset+length-1]];
     
     [request setCompletionBlock:^(void) {
         NSMutableArray *array = [NSMutableArray array];
-        
-        const char *cptr = (const char*)[[request responseData] bytes];
-        int len = [[request responseData] length];
+        NSData *data = [unretained_request responseData];        
+        const char *cptr = (const char*)[data bytes];
+        int len = [data length];
         NSLog(@"## parseCentralDirectory: ended ##");
         NSLog(@"Received: %d", len);
 
@@ -304,15 +306,18 @@ idx += sizeof(dir_record._field)
 - (void)findCentralDirectory:(NSString*)url withFileLength:(int)length completionBlock:(pinch_directory_completion)completionBlock
 {
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
-    
+    void *unretained_request = request;
+
     [request addRequestHeader:@"Range" value:[NSString stringWithFormat:@"bytes=%d-%d", length-4096, length-1]];
-    
+
     [request setCompletionBlock:^(void) {
+
         char endOfCentralDirectorySignature[4] = {
             0x50, 0x4b, 0x05, 0x06
         };
-        const char *cptr = (const char*)[[request responseData] bytes];
-        int len = [[request responseData] length];
+        NSData *data = [unretained_request responseData];
+        const char *cptr = (const char*)[data bytes];
+        int len = [data length];
         char *found = NULL;
         
         NSLog(@"## findCentralDirectory: ended ##");
@@ -353,13 +358,13 @@ idx += sizeof(end_record._field)
             GETFIELD( offsetOfStartOfCentralDirectory );
             GETFIELD( ZIPfileCommentLength );
 #undef GETFIELD
-            
+
             [self parseCentralDirectory:url 
                              withOffset:end_record.offsetOfStartOfCentralDirectory 
                              withLength:end_record.sizeOfCentralDirectory
                         completionBlock:completionBlock];
+            
         }
-        
     }];
     
     [request setFailedBlock:^(void) {

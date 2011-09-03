@@ -165,6 +165,7 @@
         [(UITableView*)self.view reloadData];
     }];
 
+    [p release];    
 }
 
 - (void)url
@@ -237,6 +238,8 @@ didSelectRowAtIndexPath:(NSIndexPath *)indexPath
         }
         
     }];
+    
+    [p release];
 }
 
 @end

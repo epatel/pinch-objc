@@ -40,7 +40,7 @@
 #import "zipentry.h"
 
 // 100 eq 1.0.0
-#define PINCH_VERSION 101
+#define PINCH_VERSION 102
 
 typedef void(^pinch_file_completion)(zipentry *entry);
 typedef void(^pinch_directory_completion)(NSArray *directory);
