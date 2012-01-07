@@ -8,13 +8,13 @@ over HTTP/1.1
 This is the Objective-C implementation. There are two demo projects, zipzapper which is an iPhone project and zipcommander which builds a commandline tool. Search for `Pinch_Example` 
 in the projects to see usages of pinch.
 
-Dependencies: [ASIHTTPRequest](http://allseeing-i.com/ASIHTTPRequest/), libz.dylib
+Dependencies: [ASIHTTPRequest](http://allseeing-i.com/ASIHTTPRequest/) or [AFNetworking](https://github.com/AFNetworking/AFNetworking), libz.dylib
 
 Ruby implementation available here: [http://peterhellberg.github.com/pinch/](http://peterhellberg.github.com/pinch/)
 
 ## LICENSE
 
-Copyright (c) 2011 Edward Patel
+Copyright (c) 2011-2012 Edward Patel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
