@@ -8,13 +8,13 @@
  This is the Objective-C implementation of "pinch"
  Ruby implementation available here: http://peterhellberg.github.com/pinch/
  
- Dependencies: ASIHTTPRequest, libz.dylib
+ Dependencies: ASIHTTPRequest or AFNetworking, libz.dylib
  
  Search for "Pinch_Example" in the zipzapper project to find usage examples
  
  https://github.com/epatel/pinch-objc
  
- Copyright (c) 2011 Edward Patel
+ Copyright (c) 2011-2012 Edward Patel
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -40,17 +40,35 @@
 #import "zipentry.h"
 
 // 100 eq 1.0.0
-#define PINCH_VERSION 102
+#define PINCH_VERSION 110
+
+// #define PINCH_USE_AFNETWORKING
+// #define PINCH_USE_ASIHTTPREQUEST
+
+#ifdef PINCH_USE_AFNETWORKING
+#  ifdef PINCH_USE_ASIHTTPREQUEST
+#    error Use AFNetworking or ASIHTTPRequest for pinch, not both
+#  endif
+#endif
+
+#ifndef PINCH_USE_AFNETWORKING
+#  ifndef PINCH_USE_ASIHTTPREQUEST
+#    error Use AFNetworking or ASIHTTPRequest for pinch, define either PINCH_USE_AFNETWORKING or PINCH_USE_ASIHTTPREQUEST
+#  endif
+#endif
 
 typedef void(^pinch_file_completion)(zipentry *entry);
 typedef void(^pinch_directory_completion)(NSArray *directory);
 
-
 @interface pinch : NSObject {
+#ifdef PINCH_USE_ASIHTTPREQUEST
     BOOL runAsynchronous;
+#endif
 }
 
+#ifdef PINCH_USE_ASIHTTPREQUEST
 @property (nonatomic, assign) BOOL runAsynchronous;
+#endif
 
 - (void)fetchFile:(zipentry*)entry completionBlock:(pinch_file_completion)completionBlock;
 - (void)fetchDirectory:(NSString*)url completionBlock:(pinch_directory_completion)completionBlock;

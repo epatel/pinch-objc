@@ -4,7 +4,7 @@
  
  https://github.com/epatel/pinch-objc
  
- Copyright (c) 2011 Edward Patel
+ Copyright (c) 2011-2012 Edward Patel
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,15 @@
  ---------------------------------------------------------------------------*/
 
 #import "pinch.h"
-#import "ASIHTTPRequest.h"
 #import "zipentry.h"
+
+#ifdef PINCH_USE_ASIHTTPREQUEST
+#  import "ASIHTTPRequest.h"
+#endif
+
+#ifdef PINCH_USE_AFNETWORKING
+#  import "AFNetworking.h"
+#endif
 
 #include <zlib.h>
 #include <ctype.h>
@@ -86,15 +93,51 @@ struct zip_file_header {
     uint16 extraFieldLength;
 };
 
+#ifdef PINCH_USE_AFNETWORKING
+@interface PinchURLResponseConnectionOperation : AFURLConnectionOperation {
+    int fileLength;
+    int responseStatusCode;
+}
+
+@property (nonatomic, assign) int fileLength;
+@property (nonatomic, assign) int responseStatusCode;
+
+@end
+
+@interface AFURLConnectionOperation ()
+
+- (void)connection:(NSURLConnection*)__unused connection didReceiveResponse:(NSHTTPURLResponse*)response;
+
+@end
+
+@implementation PinchURLResponseConnectionOperation
+
+@synthesize fileLength, responseStatusCode;
+
+- (void)connection:(NSURLConnection*)__unused connection didReceiveResponse:(NSHTTPURLResponse*)response 
+{
+    [super connection:connection didReceiveResponse:response];
+    fileLength = response.expectedContentLength;
+    responseStatusCode = response.statusCode;
+    [self cancel];
+}
+
+@end
+#endif /* PINCH_USE_AFNETWORKING */
+
 @implementation pinch
 
+#ifdef PINCH_USE_ASIHTTPREQUEST
 @synthesize runAsynchronous;
+#endif
 
 - (id)init
 {
     self = [super init];
     if (self) {
+#ifdef PINCH_USE_ASIHTTPREQUEST
         runAsynchronous = YES;
+#endif
     }
     return self;
 }
@@ -114,20 +157,35 @@ struct zip_file_header {
 
 - (void)fetchFile:(zipentry*)entry completionBlock:(pinch_file_completion)completionBlock;
 {
-    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:entry.url]];
-    void *unretained_request = request;
-    
     entry.data = nil;
-
     int length = sizeof(struct zip_file_header) + entry.sizeCompressed + entry.filenameLength + entry.extraFieldLength;
-    
+
     // Download '16' extra bytes as I've seen that extraFieldLength sometimes differs 
     // from the centralDirectory and the fileEntry header...
-    [request addRequestHeader:@"Range" 
-                        value:[NSString stringWithFormat:@"bytes=%d-%d", entry.offset, entry.offset+length+16]];
+    NSString *rangeValue = [NSString stringWithFormat:@"bytes=%d-%d", entry.offset, entry.offset+length+16];
     
-    [request setCompletionBlock:^(void) {
-        NSData *data = [unretained_request responseData];
+#ifdef PINCH_USE_ASIHTTPREQUEST
+#define RESPONSE_DATA [unretained_request responseData]
+    ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:entry.url]];
+    void *unretained_request = request;
+
+    [request addRequestHeader:@"Range" value:rangeValue];
+    
+    [request setCompletionBlock:^(void)
+#endif
+        
+#ifdef PINCH_USE_AFNETWORKING
+#define RESPONSE_DATA responseObject
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:entry.url]];
+    [request setValue:rangeValue forHTTPHeaderField:@"Range"];
+    request.cachePolicy = NSURLRequestReloadIgnoringCacheData;
+    
+    AFHTTPRequestOperation *operation = [[[AFHTTPRequestOperation alloc] initWithRequest:request] autorelease];
+    
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject)
+#endif
+    {        
+        NSData *data = RESPONSE_DATA;
         unsigned char *cptr = (unsigned char*)[data bytes];
         int len = [data length];
         NSLog(@"## fetchFile: ended ##");
@@ -206,32 +264,61 @@ idx += sizeof(file_record._field)
         }
         
         completionBlock(entry);
-        
-    }];
+    } 
 
+#ifdef PINCH_USE_AFNETWORKING        
+                                     failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+                                         NSLog(@"## fetchFile: failed ##");
+                                         completionBlock(entry);
+                                     }];
+        [operation start];
+#endif
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
+    ];
+        
     [request setFailedBlock:^(void) {
         NSLog(@"## fetchFile: failed ##");
         completionBlock(entry);
     }];
-    
+        
     if (runAsynchronous)
         [request startAsynchronous];
     else
         [request startSynchronous];
+#endif
+        
 }
 
 // Support method to parse the zip file content directory
 
 - (void)parseCentralDirectory:(NSString*)url withOffset:(int)offset withLength:(int)length completionBlock:(pinch_directory_completion)completionBlock
 {
+    NSString *rangeValue = [NSString stringWithFormat:@"bytes=%d-%d", offset, offset+length-1];
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
+#define RESPONSE_DATA [unretained_request responseData]
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
     void *unretained_request = request;
     
-    [request addRequestHeader:@"Range" value:[NSString stringWithFormat:@"bytes=%d-%d", offset, offset+length-1]];
+    [request addRequestHeader:@"Range" value:rangeValue];
     
-    [request setCompletionBlock:^(void) {
+    [request setCompletionBlock:^(void)
+#endif
+        
+#ifdef PINCH_USE_AFNETWORKING
+#define RESPONSE_DATA responseObject
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+    [request setValue:rangeValue forHTTPHeaderField:@"Range"];
+    request.cachePolicy = NSURLRequestReloadIgnoringCacheData;
+    
+    AFHTTPRequestOperation *operation = [[[AFHTTPRequestOperation alloc] initWithRequest:request] autorelease];
+    
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject)
+#endif
+    {
         NSMutableArray *array = [NSMutableArray array];
-        NSData *data = [unretained_request responseData];        
+        NSData *data = RESPONSE_DATA;        
         const char *cptr = (const char*)[data bytes];
         int len = [data length];
         NSLog(@"## parseCentralDirectory: ended ##");
@@ -287,8 +374,18 @@ idx += sizeof(dir_record._field)
         }
                 
         completionBlock([NSArray arrayWithArray:array]);
-            
-    }];
+    } 
+     
+#ifdef PINCH_USE_AFNETWORKING        
+                                     failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+                                         NSLog(@"## parseCentralDirectory: failed ##");
+                                         completionBlock(nil);
+                                     }];
+    [operation start];
+#endif
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
+    ];
     
     [request setFailedBlock:^(void) {
         NSLog(@"## parseCentralDirectory: failed ##");
@@ -299,33 +396,51 @@ idx += sizeof(dir_record._field)
         [request startAsynchronous];
     else
         [request startSynchronous];
+#endif
+    
 }
 
 // Support method to find the zip file content directory
 
 - (void)findCentralDirectory:(NSString*)url withFileLength:(int)length completionBlock:(pinch_directory_completion)completionBlock
 {
+    NSString *rangeValue = [NSString stringWithFormat:@"bytes=%d-%d", length-4096, length-1];
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
+#define RESPONSE_DATA [unretained_request responseData]
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
     void *unretained_request = request;
-
-    [request addRequestHeader:@"Range" value:[NSString stringWithFormat:@"bytes=%d-%d", length-4096, length-1]];
-
-    [request setCompletionBlock:^(void) {
-
+    
+    [request addRequestHeader:@"Range" value:rangeValue];
+    
+    [request setCompletionBlock:^(void)
+#endif
+     
+#ifdef PINCH_USE_AFNETWORKING
+#define RESPONSE_DATA responseObject
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+    [request setValue:rangeValue forHTTPHeaderField:@"Range"];
+    request.cachePolicy = NSURLRequestReloadIgnoringCacheData;
+     
+    AFHTTPRequestOperation *operation = [[[AFHTTPRequestOperation alloc] initWithRequest:request] autorelease];
+     
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject)
+#endif
+    {
         char endOfCentralDirectorySignature[4] = {
             0x50, 0x4b, 0x05, 0x06
         };
-        NSData *data = [unretained_request responseData];
+        NSData *data = RESPONSE_DATA;
         const char *cptr = (const char*)[data bytes];
         int len = [data length];
         char *found = NULL;
         
         NSLog(@"## findCentralDirectory: ended ##");
         NSLog(@"Received: %d", len);
-
+        
         do {
             char *fptr = memchr(cptr, 0x50, len);
-
+            
             if (!fptr) // done searching 
                 break;
             
@@ -358,14 +473,24 @@ idx += sizeof(end_record._field)
             GETFIELD( offsetOfStartOfCentralDirectory );
             GETFIELD( ZIPfileCommentLength );
 #undef GETFIELD
-
+            
             [self parseCentralDirectory:url 
                              withOffset:end_record.offsetOfStartOfCentralDirectory 
                              withLength:end_record.sizeOfCentralDirectory
                         completionBlock:completionBlock];
-            
         }
-    }];
+    }
+     
+#ifdef PINCH_USE_AFNETWORKING        
+                                     failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+                                         NSLog(@"## findCentralDirectory: failed ##");
+                                         completionBlock(nil);
+                                     }];
+    [operation start];
+#endif
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
+    ];
     
     [request setFailedBlock:^(void) {
         NSLog(@"## findCentralDirectory: failed ##");
@@ -376,6 +501,8 @@ idx += sizeof(end_record._field)
         [request startAsynchronous];
     else
         [request startSynchronous];
+#endif
+    
 }
 
 /* ----------------------------------------------------------------------
@@ -388,6 +515,26 @@ idx += sizeof(end_record._field)
 
 - (void)fetchDirectory:(NSString*)url completionBlock:(pinch_directory_completion)completionBlock
 {
+    
+#ifdef PINCH_USE_AFNETWORKING
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+    request.cachePolicy = NSURLRequestReloadIgnoringCacheData;
+
+    PinchURLResponseConnectionOperation *operation = [[[PinchURLResponseConnectionOperation alloc] initWithRequest:request] autorelease];
+        
+    [operation setCompletionBlock:^{
+        if (operation.responseStatusCode == 200) {
+            [self findCentralDirectory:url withFileLength:operation.fileLength completionBlock:completionBlock];
+        } else {
+            NSLog(@"## fetchDirectory: failed ##");
+            completionBlock(nil);
+        }
+    }];
+    
+    [operation start];
+#endif
+    
+#ifdef PINCH_USE_ASIHTTPREQUEST
     ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:url]];
     
     [request setCompletionBlock:^(void) {
@@ -413,6 +560,8 @@ idx += sizeof(end_record._field)
         [request startAsynchronous];
     else
         [request startSynchronous];
+#endif
+
 }
 
 @end
