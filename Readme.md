@@ -12,6 +12,8 @@ Dependencies: [ASIHTTPRequest](http://allseeing-i.com/ASIHTTPRequest/) or [AFNet
 
 Ruby implementation available here: [http://peterhellberg.github.com/pinch/](http://peterhellberg.github.com/pinch/)
 
+Java (inc. Android) implementation available here: [https://github.com/carlbenson/Pinch](https://github.com/carlbenson/Pinch)
+
 ## LICENSE
 
 Copyright (c) 2011-2012 Edward Patel
