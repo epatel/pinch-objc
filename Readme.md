@@ -14,6 +14,8 @@ Ruby implementation available here: [http://peterhellberg.github.com/pinch/](htt
 
 Java (inc. Android) implementation available here: [https://github.com/carlbenson/Pinch](https://github.com/carlbenson/Pinch)
 
+Go implementation available here: [https://github.com/peterhellberg/go-pinch](https://github.com/peterhellberg/go-pinch)
+
 ## LICENSE
 
 Copyright (c) 2011-2012 Edward Patel
